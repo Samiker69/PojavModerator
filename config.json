@@ -1,0 +1,8 @@
+{
+    "token": "your-bot-token",
+    "supportChannel": "511",
+    "talkChannel": "1",
+    "pojavgroup": "pojavlauncher_chat",
+    "moderChat": "null",
+    "admins": "bletick"
+}
