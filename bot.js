@@ -9,21 +9,23 @@ function sendMessage(chatId, text, options = {}) {
     bot.sendMessage(chatId, text, messageOptions);
   }
   
-  async function sendDelMessage(chatId, text, options = {}, msg) {
-      const messageThreadId = msg.message_thread_id;
+  async function sendDelMessage(chatId, text, options = {}) {
       const messageOptions = options.message_thread_id ? { message_thread_id: options.message_thread_id } : {};
       const del = await bot.sendMessage(chatId, text, messageOptions);
   
       setTimeout(async () => {
-          await bot.deleteMessage(del.chat.id, del.message_id, { message_thread_id: messageThreadId });
+          await bot.deleteMessage(del.chat.id, del.message_id, { message_thread_id: del.message_thread_id });
       }, 3000);
   }
 
 const commands = {
     '/blacklist_add': async (msg, args) => {
-        const messageThreadId = msg.message_thread_id;
+        let messageThreadId = msg.message_thread_id;
+        if (messageThreadId != '511' || messageThreadId != '1421' || messageThreadId != '63531') {
+            messageThreadId = '0'
+        }
         const chatId = msg.chat.id;
-        let user;
+        let userToAdd;
 
         if (args.length > 0 && msg.reply_to_message) {
             userToAdd = msg.reply_to_message.from;
@@ -35,8 +37,6 @@ const commands = {
             return;
         }
 
-        if (userToAdd.username) {user = userToAdd.username} else if (userToAdd.id) {user = userToAdd.id}
-
         const reason = args.join(' ');
 
         await insert();
@@ -45,7 +45,7 @@ const commands = {
 
         const buser = await inblacklist(userToAdd.id);
         if (buser) {
-            await sendDelMessage(chatId, `[Участник](http://t.me/${user}) уже находится в чёрном списке!`, { disable_web_page_preview: true, parse_mode: 'Markdown', message_thread_id: messageThreadId })
+            await sendDelMessage(chatId, `@${userToAdd} уже находится в чёрном списке!`, { message_thread_id: messageThreadId, disable_web_page_preview: true, parse_mode: 'Markdown' })
             setTimeout(async () => {
                 await bot.deleteMessage(msg.chat.id, msg.message_id, { message_thread_id: messageThreadId });
             }, 3000);
@@ -55,7 +55,7 @@ const commands = {
         Createnum(nums);
         addToBlacklist(reason, userToAdd, nums)
             .then(() => {
-                return sendMessage(chatId, `[Пользователь](http://t.me/${user}) добавлен в черный список по причине: "${reason}". Действие №${nums}`, { disable_web_page_preview: true, parse_mode: 'Markdown', message_thread_id: messageThreadId });
+                return sendMessage(chatId, `@${userToAdd} добавлен в черный список по причине: "${reason}". Действие №${nums}`, { message_thread_id: messageThreadId, disable_web_page_preview: true, parse_mode: 'Markdown' });
             })
             .catch(async(error) => {
                 console.error('Ошибка при добавлении в черный список:', error);
@@ -67,10 +67,12 @@ const commands = {
             });
     },
     '/blacklist_remove': async (msg, args) => {
-        const messageThreadId = msg.message_thread_id;
+        let messageThreadId = msg.message_thread_id;
+        if (messageThreadId != '511' || messageThreadId != '1421' || messageThreadId != '63531') {
+            messageThreadId = '0'
+        }
         const chatId = msg.chat.id;
         let userToRm;
-        let user;
 
         if (!msg.reply_to_message) {
             await sendDelMessage(chatId, 'Пожалуйста, ответьте на сообщение пользователя.', { message_thread_id: messageThreadId });
@@ -82,8 +84,6 @@ const commands = {
         }
 
         userToRm = msg.reply_to_message.from;
-
-        if (userToRm.username) {user = userToRm.username} else if (userToRm.id) {user = userToRm.id}
 
         if (args.length === 0 || isNaN(args[0])) {
             await sendDelMessage(chatId, 'Пожалуйста, укажите номер действия для удаления из черного списка.', { message_thread_id: messageThreadId });
@@ -117,7 +117,7 @@ const commands = {
             return;
         }
 
-        return sendMessage(chatId, `Действие №${actionNumber} удалено. [Участник](http://t.me/${user}) больше не в черном списке.`, { disable_web_page_preview: true, parse_mode: 'Markdown', message_thread_id: messageThreadId })
+        return sendMessage(chatId, `Действие №${actionNumber} удалено. @${userToRm} больше не в черном списке.`, { message_thread_id: messageThreadId, disable_web_page_preview: true, parse_mode: 'Markdown' })
     },
     '/viewlist': async (msg) => {
         const messageThreadId = msg.message_thread_id;

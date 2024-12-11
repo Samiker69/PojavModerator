@@ -22,14 +22,14 @@ bot.on('message', (msg) => {
 
 bot.on('message', async (msg) => {
     const topicId = msg.message_thread_id || 0;
+    const delmsginchannel = supportChannel;
+    const userId = msg.from.id;
 
-    if (topicId === supportChannel) {
-        const userId = msg.from.id;
-
+    if (topicId == delmsginchannel) {
         const buser = await inblacklist(userId);
         //buser = true || false
         if (buser) {
-            bot.deleteMessage(msg.chat.id, msg.message_id)
+            bot.deleteMessage(msg.chat.id, msg.message_id, { message_thread_id: topicId })
                 .catch(err => console.log('Не удалось удалить сообщение:', err));
         }
     }

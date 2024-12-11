@@ -1,5 +1,5 @@
 {
-    "token": "NO_VALID_DATA", 
+    "token": "your_bot_token_here", 
     "supportChannel": "511",
     "talkChannel": "1",
     "pojavgroup": "pojavlauncher_chat",
