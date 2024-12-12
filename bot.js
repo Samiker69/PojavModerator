@@ -4,38 +4,23 @@ const path = require('path');
 
 const filePath = path.join(__dirname, './blacklist.db');
 
-function sendMessage(chatId, text, options = {}) {
-    const messageOptions = options.message_thread_id ? { message_thread_id: options.message_thread_id } : {};
-    bot.sendMessage(chatId, text, messageOptions);
-  }
-  
-  async function sendDelMessage(chatId, text, options = {}) {
-      const messageOptions = options.message_thread_id ? { message_thread_id: options.message_thread_id } : {};
-      const del = await bot.sendMessage(chatId, text, messageOptions);
-  
-      setTimeout(async () => {
-          await bot.deleteMessage(del.chat.id, del.message_id, { message_thread_id: del.message_thread_id });
-      }, 3000);
-  }
-
 const commands = {
     '/blacklist_add': async (msg, args) => {
-        let messageThreadId = msg.message_thread_id;
-        if (messageThreadId != '511' || messageThreadId != '1421' || messageThreadId != '63531') {
-            messageThreadId = '0'
-        }
         const chatId = msg.chat.id;
-        let userToAdd;
+        let user;
 
         if (args.length > 0 && msg.reply_to_message) {
             userToAdd = msg.reply_to_message.from;
         } else {
-            await sendDelMessage(chatId, 'Пожалуйста, ответьте на сообщение пользователя.', { message_thread_id: messageThreadId });
+            const delmsg = await bot.sendMessage(chatId, 'Пожалуйста, ответьте на сообщение пользователя.');
             setTimeout(async () => {
-                await bot.deleteMessage(msg.chat.id, msg.message_id, { message_thread_id: messageThreadId });
+                await bot.deleteMessage(delmsg.chat.id, delmsg.message_id);
+                await bot.deleteMessage(msg.chat.id, msg.message_id);
             }, 3000);
             return;
         }
+
+        if (userToAdd.username) {user = userToAdd.username} else if (userToAdd.id) {user = userToAdd.id}
 
         const reason = args.join(' ');
 
@@ -45,9 +30,10 @@ const commands = {
 
         const buser = await inblacklist(userToAdd.id);
         if (buser) {
-            await sendDelMessage(chatId, `@${userToAdd} уже находится в чёрном списке!`, { message_thread_id: messageThreadId, disable_web_page_preview: true, parse_mode: 'Markdown' })
+            const delmsg = await bot.sendMessage(chatId, `[Участник](http://t.me/${user}) уже находится в чёрном списке!`, { disable_web_page_preview: true, parse_mode: 'Markdown' })
             setTimeout(async () => {
-                await bot.deleteMessage(msg.chat.id, msg.message_id, { message_thread_id: messageThreadId });
+                await bot.deleteMessage(delmsg.chat.id, delmsg.message_id);
+                await bot.deleteMessage(msg.chat.id, msg.message_id);
             }, 3000);
             return;
         }
@@ -55,41 +41,38 @@ const commands = {
         Createnum(nums);
         addToBlacklist(reason, userToAdd, nums)
             .then(() => {
-                return sendMessage(chatId, `@${userToAdd} добавлен в черный список по причине: "${reason}". Действие №${nums}`, { message_thread_id: messageThreadId, disable_web_page_preview: true, parse_mode: 'Markdown' });
+                return bot.sendMessage(chatId, `[Пользователь](http://t.me/${user}) добавлен в черный список по причине: "${reason}". Действие №${nums}`, { disable_web_page_preview: true, parse_mode: 'Markdown' });
             })
-            .catch(async(error) => {
+            .catch(error => {
                 console.error('Ошибка при добавлении в черный список:', error);
-                await sendDelMessage(chatId, 'Произошла ошибка при добавлении пользователя в черный список.', { message_thread_id: messageThreadId });
-
-                setTimeout(async () => {
-                    await bot.deleteMessage(msg.chat.id, msg.message_id, { message_thread_id: messageThreadId });
-                }, 3000);
+                return bot.sendMessage(chatId, 'Произошла ошибка при добавлении пользователя в черный список.');
             });
     },
     '/blacklist_remove': async (msg, args) => {
-        let messageThreadId = msg.message_thread_id;
-        if (messageThreadId != '511' || messageThreadId != '1421' || messageThreadId != '63531') {
-            messageThreadId = '0'
-        }
         const chatId = msg.chat.id;
         let userToRm;
+        let user;
 
         if (!msg.reply_to_message) {
-            await sendDelMessage(chatId, 'Пожалуйста, ответьте на сообщение пользователя.', { message_thread_id: messageThreadId });
+            const delmsg = await bot.sendMessage(chatId, 'Пожалуйста, ответьте на сообщение пользователя.');
 
             setTimeout(async () => {
-                await bot.deleteMessage(msg.chat.id, msg.message_id, { message_thread_id: messageThreadId });
+                await bot.deleteMessage(delmsg.chat.id, delmsg.message_id);
+                await bot.deleteMessage(msg.chat.id, msg.message_id);
             }, 3000);
             return;
         }
 
         userToRm = msg.reply_to_message.from;
 
+        if (userToRm.username) {user = userToRm.username} else if (userToRm.id) {user = userToRm.id}
+
         if (args.length === 0 || isNaN(args[0])) {
-            await sendDelMessage(chatId, 'Пожалуйста, укажите номер действия для удаления из черного списка.', { message_thread_id: messageThreadId });
+            const delmsg = await bot.sendMessage(chatId, 'Пожалуйста, укажите номер действия для удаления из черного списка.');
 
             setTimeout(async () => {
-                await bot.deleteMessage(msg.chat.id, msg.message_id, { message_thread_id: messageThreadId });
+                await bot.deleteMessage(delmsg.chat.id, delmsg.message_id);
+                await bot.deleteMessage(msg.chat.id, msg.message_id);
             }, 3000);
             return;
         }
@@ -98,10 +81,11 @@ const commands = {
         try {
             const buser = await fetchUserid(actionNumber)
             if (!buser) {
-                await sendDelMessage(chatId, `Пользователь не найден в черном списке!`, { message_thread_id: messageThreadId });
+                const delmsg = await bot.sendMessage(chatId, `Пользователь не найден в черном списке!`);
 
                 setTimeout(async () => {
-                    await bot.deleteMessage(msg.chat.id, msg.message_id, { message_thread_id: messageThreadId });
+                    await bot.deleteMessage(delmsg.chat.id, delmsg.message_id);
+                    await bot.deleteMessage(msg.chat.id, msg.message_id);
                 }, 3000);
                 return;
             }
@@ -109,18 +93,18 @@ const commands = {
             await updUnblockingUser(actionNumber);
         } catch (error) {
             console.log(`blacklist_rm error: ${error}`);
-            await sendDelMessage(chatId, 'Произошла ошибка при обработке апроса.', { message_thread_id: messageThreadId });
+            const delmsg = await bot.sendMessage(chatId, 'Произошла ошибка при обработке апроса.');
 
             setTimeout(async () => {
-                await bot.deleteMessage(msg.chat.id, msg.message_id, { message_thread_id: messageThreadId });
+                await bot.deleteMessage(delmsg.chat.id, delmsg.message_id);
+                await bot.deleteMessage(msg.chat.id, msg.message_id);
             }, 3000);
             return;
         }
 
-        return sendMessage(chatId, `Действие №${actionNumber} удалено. @${userToRm} больше не в черном списке.`, { message_thread_id: messageThreadId, disable_web_page_preview: true, parse_mode: 'Markdown' })
+        return bot.sendMessage(chatId, `Действие №${actionNumber} удалено. [Участник](http://t.me/${user}) больше не в черном списке.`, { disable_web_page_preview: true, parse_mode: 'Markdown' })
     },
     '/viewlist': async (msg) => {
-        const messageThreadId = msg.message_thread_id;
         const chatId = msg.chat.id;
         const userId = msg.from.id;
 
@@ -133,16 +117,17 @@ const commands = {
             return;
         }
 
-        return await bot.sendDocument(chatId, filePath, {}, { contentType: 'application/octet-stream', message_thread_id: messageThreadId })
+        return await bot.sendDocument(chatId, filePath, {}, { contentType: 'application/octet-stream' })
         .then(() => {
-            bot.deleteMessage(chatId, msg.message_id, { message_thread_id: messageThreadId });
+            bot.deleteMessage(chatId, msg.message_id);
         })
-        .catch(async(error)=> {
+        .catch(error => {
             console.error("Ошибка при отправке файла:", error);
-            await sendDelMessage(chatId, "Произошла ошибка при отправке файла.", { message_thread_id: messageThreadId });
+            const delmsg = bot.sendMessage(chatId, "Произошла ошибка при отправке файла.");
             
             setTimeout(async () => {
-                await bot.deleteMessage(msg.chat.id, msg.message_id, { message_thread_id: messageThreadId });
+                await bot.deleteMessage(delmsg.chat.id, delmsg.message_id);
+                await bot.deleteMessage(msg.chat.id, msg.message_id);
             }, 3000);
         });
     }
