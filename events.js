@@ -56,10 +56,14 @@ function sendMessage(chatId, text, options = {}) {
   bot.sendMessage(chatId, text, messageOptions);
 }
 
-const safeDeleteMessage = async (chatId, messageId, options) => {
-    const messageOptions = options.message_thread_id ? { message_thread_id: options.message_thread_id } : {};
+const safeDeleteMessage = async (chatId, messageId, options = {}) => {
     try {
-        await bot.deleteMessage(chatId, messageId, { message_thread_id: messageThreadId });
+        // Check if message_thread_id exists in options and pass it when deleting
+        if (options.message_thread_id) {
+            await bot.deleteMessage(chatId, messageId, { message_thread_id: options.message_thread_id });
+        } else {
+            await bot.deleteMessage(chatId, messageId);
+        }
     } catch (error) {
         if (error.code === 'ETELEGRAM' && error.response && error.response.statusCode === 400) {
             console.log(`Message to delete not found: Chat ID ${chatId}, Message ID ${messageId}`);
