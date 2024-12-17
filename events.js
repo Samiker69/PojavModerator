@@ -12,7 +12,7 @@ bot.on('message', (msg) => {
 
     if (chatId > 0) {
         if (!adminList.includes(msg.from.username)) {
-            bot.deleteMessage(chatId, msg.message_id)
+            safeDeleteMessage(chatId, msg.message_id)
                 .catch(err => {
                     console.error('Ошибка при удалении сообщения:', err);
                 });
