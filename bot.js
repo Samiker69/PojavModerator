@@ -48,6 +48,14 @@ const commands = {
                 return bot.sendMessage(chatId, 'Произошла ошибка при добавлении пользователя в черный список.');
             });
     },
+    '/bothelp': async (msg) => {
+        const chatId = msg.chat.id;
+        const replyToMsg = msg.message_id;
+        const hcontent = 'Об использовании команд @pojavmoderator_bot\n\nЧёрный список - люди, находящиеся в нём, не смогут писать в канал поддержки.\n\nblacklist_add <reason> - добавить в чёрный список. необходимо ответить на сообщение юзера\nblacklist_remove <case num> - убрать из чёрного списка. Необходимо ответить на сообщение польхователя.\nviewlist - кидает файл бд с всеми участниками.\n\naddtag <имя тега> <значение>\ndeletetag <имя тега> - удаляет тег\ntag <имя тега> - показывает значение тега\nalltags - показывает все теги\n\n.tag <имя тега> - показывает значение тега.';
+        let user;
+        const helpmsg = await bot.sendMessage(chatId, hcontent, replyToMsg);
+        return;
+    },
     '/blacklist_remove': async (msg, args) => {
         const chatId = msg.chat.id;
         let userToRm;
@@ -169,4 +177,9 @@ bot.onText(/\/viewlist/, async(msg) => {
     commands['/viewlist'](msg);
 });
 
+// Какая-то чертовщина для поллинга, в моем случае ошибки не решило, но пускай оно тут будет
+bot.on('polling_error', (error) => {
+  console.log(error.code);  // => 'EFATAL'
+});
+        
 console.log('PojavModerator запущен и готов к работе.');
