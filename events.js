@@ -98,8 +98,17 @@ bot.onText(/\/addtag (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   const messageThreadId = msg.message_thread_id;
-  const [tagName, ...descriptionArr] = match[1].split(' ');
-  const tagDescription = descriptionArr.join(' ');
+  const msgtxt = msg.text
+
+  const tagN = msgtxt.replace("/addtag ", "");
+  let parts = tagN.split(/\s(.+)/);
+
+  const tagName = parts[0];
+
+  parts=parts.filter(item => item !== parts[0]);
+  parts=parts.map(item => item === '' ? '\n' : item);
+
+  const tagDescription = parts.join('');
 
   // Check if the user is an admin
   if (!await isAdmin(chatId, userId)) {
