@@ -1,4 +1,22 @@
 {
+  "name": "pojavmoderator",
+  "version": "0.2.0",
+  "description": "",
+  "homepage": "https://github.com/Samiker69/PojavModerator#readme",
+  "bugs": {
+    "url": "https://github.com/Samiker69/PojavModerator/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Samiker69/PojavModerator.git"
+  },
+  "license": "MIT",
+  "author": "Samiker",
+  "type": "commonjs",
+  "main": "bot.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
   "dependencies": {
     "node-telegram-bot-api": "^0.66.0",
     "sqlite": "^5.1.1",
