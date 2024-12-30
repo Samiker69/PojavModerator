@@ -1,3 +1,4 @@
+const { create } = require('domain');
 const { insert, Createnum, updBlockUser, fetchNum, updUnblockingUser, fetchUserid, inblacklist } = require('./db');
 const bot = require('./events');
 const path = require('path');
@@ -36,18 +37,21 @@ const commands = {
             }, 3000);
             return;
         }
+        if (userToAdd.id === 7547671621) return;
 
-        if (userToAdd.username) {user = userToAdd.username} else if (userToAdd.id) {user = userToAdd.id}
+        if (userToAdd.username) {user = `t.me/${userToAdd.username}`} else if (userToAdd.id) {user = `tg://user?id=${userToAdd.id}`}
 
         const reason = args.join(' ');
 
         await insert();
+        
         const number = await fetchNum();
         const nums = number.num.at(-1) + 1;
+        await Createnum(nums)
 
         const buser = await inblacklist(userToAdd.id);
         if (buser) {
-            const delmsg = await bot.sendMessage(chatId, `[Участник](http://t.me/${user}) уже находится в чёрном списке!`, { disable_web_page_preview: true, parse_mode: 'Markdown' })
+            const delmsg = await bot.sendMessage(chatId, "Пользователь ["+userToAdd.first_name+`](${user}) уже находится в чёрном списке!`, { disable_web_page_preview: true, parse_mode: 'Markdown' })
             setTimeout(async () => {
                 await safeDeleteMessage(delmsg.chat.id, delmsg.message_id);
                 await safeDeleteMessage(msg.chat.id, msg.message_id);
@@ -55,17 +59,16 @@ const commands = {
             return;
         }
 
-        Createnum(nums);
         addToBlacklist(reason, userToAdd, nums)
             .then(() => {
-                return bot.sendMessage(chatId, `[Пользователь](http://t.me/${user}) добавлен в черный список по причине: "${reason}". Действие №${nums}`, { disable_web_page_preview: true, parse_mode: 'Markdown' });
+                return bot.sendMessage(chatId, "Пользователь ["+userToAdd.first_name+`](${user}) добавлен в черный список по причине: ${reason}`, { disable_web_page_preview: true, parse_mode: 'Markdown' });
             })
             .catch(error => {
                 console.error('Ошибка при добавлении в черный список:', error);
-                return bot.sendMessage(chatId, 'Произошла ошибка при добавлении пользователя в черный список.');
+                return bot.sendMessage(chatId, 'Произошла ошибка при добавлении пользователя в черный список. Совет: не используйте быстрые команды.');
             });
     },
-    '/blacklist_remove': async (msg, args) => {
+    '/blacklist_remove': async (msg) => {
         const chatId = msg.chat.id;
         let userToRm;
         let user;
@@ -82,21 +85,10 @@ const commands = {
 
         userToRm = msg.reply_to_message.from;
 
-        if (userToRm.username) {user = userToRm.username} else if (userToRm.id) {user = userToRm.id}
+        if (userToRm.username) {user = `t.me/${userToRm.username}`} else if (userToRm.id) {user = `tg://user?id=${userToRm.id}`}
 
-        if (args.length === 0 || isNaN(args[0])) {
-            const delmsg = await bot.sendMessage(chatId, 'Пожалуйста, укажите номер действия для удаления из черного списка.');
-
-            setTimeout(async () => {
-                await safeDeleteMessage(delmsg.chat.id, delmsg.message_id);
-                await safeDeleteMessage(msg.chat.id, msg.message_id);
-            }, 3000);
-            return;
-        }
-
-        const actionNumber = args[0];
         try {
-            const buser = await fetchUserid(actionNumber)
+            const buser = await inblacklist(userToRm.id)
             if (!buser) {
                 const delmsg = await bot.sendMessage(chatId, `Пользователь не найден в черном списке!`);
 
@@ -107,7 +99,7 @@ const commands = {
                 return;
             }
 
-            await updUnblockingUser(actionNumber);
+            await updUnblockingUser(userToRm.id);
         } catch (error) {
             console.log(`blacklist_rm error: ${error}`);
             const delmsg = await bot.sendMessage(chatId, 'Произошла ошибка при обработке апроса.');
@@ -119,7 +111,7 @@ const commands = {
             return;
         }
 
-        return bot.sendMessage(chatId, `Действие №${actionNumber} удалено. [Участник](http://t.me/${user}) больше не в черном списке.`, { disable_web_page_preview: true, parse_mode: 'Markdown' })
+        return bot.sendMessage(chatId, `Пользователь [`+userToRm.first_name+`](${user}) больше не в черном списке.`, { disable_web_page_preview: true, parse_mode: 'Markdown' })
     },
     '/viewlist': async (msg) => {
         const chatId = msg.chat.id;
@@ -154,7 +146,7 @@ const addToBlacklist = async (reason, user, nums) => {
     try {
         updBlockUser('num', 'userid', 'reason', nums, user.id, reason);
     } catch (error) {
-        console.log(`addToBlacklist err: ${error}`);
+        console.error(`addToBlacklist err: ${error}`);
     }
 };
 

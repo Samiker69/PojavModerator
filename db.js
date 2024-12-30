@@ -68,9 +68,9 @@ async function Createnum(num) {
     return all;
   }
 
-  async function updUnblockingUser(num) {
+  async function updUnblockingUser(id) {
     const db = await openDb();
-    await db.run(`DELETE FROM blacklist WHERE num = ${num}`);
+    await db.run(`DELETE FROM blacklist WHERE userid = ${id}`);
   }
 
   async function fetchUserid(num) {
