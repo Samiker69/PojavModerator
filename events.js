@@ -118,28 +118,6 @@ bot.onText(/\/addtag (.+)/, async (msg, match) => {
   });
 }); 
 
-// Get the description of a tag
-bot.onText(/\/tag (.+)/, async (msg, match) => {
-  const chatId = msg.chat.id;
-  const messageThreadId = msg.message_thread_id;
-  const tagName = match[1];
-
-  // If the tag is cached, return it directly
-  if (cache.has(tagName)) {
-    return sendMessage(chatId, `${cache.get(tagName)}`, { message_thread_id: messageThreadId });
-  }
-
-  // Retrieve the tag from the database
-  db.get(`SELECT description FROM tags WHERE tag = ?`, [tagName], async (err, row) => {
-    if (err, !row) {
-        await sendDelMessage(chatId, `Тег '${tagName}' не найден.`, { message_thread_id: messageThreadId }, msg);
-    } else {
-      cache.set(tagName, row.description); // Cache the tag for future use
-      sendMessage(chatId, `${row.description}`, { message_thread_id: messageThreadId });
-    }
-  });
-});
-
 // Delete a tag (only for admins)
 bot.onText(/\/deletetag (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
@@ -179,15 +157,13 @@ bot.onText(/\/alltags/, (msg) => {
 });
 });
 
-bot.onText(/.tag (.+)/, async (msg, match) => {
+bot.onText(/!(.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const messageThreadId = msg.message_thread_id;
     const tagName = match[1];
   
     // If the tag is cached, return it directly
-    if (cache.has(tagName)) {
-      return sendMessage(chatId, `${cache.get(tagName)}`, { message_thread_id: messageThreadId });
-    }
+    if (cache.has(tagName)) return sendMessage(chatId, `${cache.get(tagName)}`, { message_thread_id: messageThreadId });
   
     // Retrieve the tag from the database
     db.get(`SELECT description FROM tags WHERE tag = ?`, [tagName], async (err, row) => {
