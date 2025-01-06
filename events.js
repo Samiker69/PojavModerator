@@ -4,14 +4,12 @@ const { inblacklist } = require('./db');
 
 const bot = new TelegramBot(token, { polling: true });
 
-const adminList = admins.split(',').map(admin => admin.trim());
-
 //Delete messages if not written by an administrator
 bot.on('message', (msg) => {
     const chatId = msg.chat.id;
 
     if (chatId > 0) {
-        if (!adminList.includes(msg.from.username)) {
+        if (!admins.includes(msg.from.username)) {
             safeDeleteMessage(chatId, msg.message_id)
                 .catch(err => {
                     console.error('Ошибка при удалении сообщения:', err);
@@ -21,13 +19,13 @@ bot.on('message', (msg) => {
 });
 
 bot.on('message', async (msg) => {
-    const topicId = msg.message_thread_id || 0;
+  let topicId = msg.message_thread_id;
+  if (!msg.is_topic_message) topicId = null;
     const delmsginchannel = supportChannel;
     const userId = msg.from.id;
 
     if (topicId == delmsginchannel) {
-        const buser = await inblacklist(userId);
-        //buser = true || false
+        const buser = await inblacklist(userId); //buser = true || false
         if (buser) {
             safeDeleteMessage(msg.chat.id, msg.message_id, { message_thread_id: topicId })
                 .catch(err => console.log('Не удалось удалить сообщение:', err));
@@ -66,7 +64,7 @@ const safeDeleteMessage = async (chatId, messageId, options = {}) => {
         }
     } catch (error) {
         if (error.code === 'ETELEGRAM' && error.response && error.response.statusCode === 400) {
-            console.log(`Message to delete not found: Chat ID ${chatId}, Message ID ${messageId}`);
+            console.log(`Message to delete not found: Chat ID ${chatId}, Message ID ${messageId}`, error);
         } else {
             console.error('Unexpected error while deleting message:', error);
         }
@@ -74,7 +72,9 @@ const safeDeleteMessage = async (chatId, messageId, options = {}) => {
 };
 
 async function sendDelMessage(chatId, text, options = {}, msg) {
-    const messageThreadId = msg.message_thread_id;
+    let messageThreadId = msg.message_thread_id;
+    if (!msg.is_topic_message) messageThreadId = null;
+
     const messageOptions = options.message_thread_id ? { message_thread_id: options.message_thread_id } : {};
     const del = await bot.sendMessage(chatId, text, messageOptions);
 
@@ -94,10 +94,11 @@ async function isAdmin(chatId, userId) {
   }
 }
 
-bot.onText(/\/addtag (.+)/, async (msg, match) => {
+bot.onText(/\/addtag (.+)/, async (msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
-  const messageThreadId = msg.message_thread_id;
+  let messageThreadId = msg.message_thread_id;
+  if (!msg.is_topic_message) messageThreadId = null;
   const msgtxt = msg.text
 
   const tagN = msgtxt.replace("/addtag ", "");
@@ -131,7 +132,8 @@ bot.onText(/\/addtag (.+)/, async (msg, match) => {
 bot.onText(/\/deletetag (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
-  const messageThreadId = msg.message_thread_id;
+  let messageThreadId = msg.message_thread_id;
+  if (!msg.is_topic_message) messageThreadId = null;
   const tagName = match[1];
 
   // Check if the user is an admin
@@ -154,7 +156,8 @@ bot.onText(/\/deletetag (.+)/, async (msg, match) => {
 // List all tags
 bot.onText(/\/alltags/, (msg) => {
   const chatId = msg.chat.id;
-  const messageThreadId = msg.message_thread_id;
+  let messageThreadId = msg.message_thread_id;
+  if (!msg.is_topic_message) messageThreadId = null;
 
   db.all('SELECT tag FROM tags', [], (err, rows) => {
   if (err || rows.length === 0) {
@@ -168,7 +171,8 @@ bot.onText(/\/alltags/, (msg) => {
 
 bot.onText(/!(.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
-    const messageThreadId = msg.message_thread_id;
+    let messageThreadId = msg.message_thread_id;
+  if (!msg.is_topic_message) messageThreadId = null;
     const tagName = match[1];
   
     // If the tag is cached, return it directly
@@ -183,6 +187,125 @@ bot.onText(/!(.+)/, async (msg, match) => {
         sendMessage(chatId, `${row.description}`, { message_thread_id: messageThreadId });
       }
     });
+});
+
+//mod
+const ms = require("ms");
+bot.onText(/\/ban/, async (msg, match) => {
+  const chatId = msg.chat.id;
+  let messageThreadId = msg.message_thread_id;
+  if (!msg.is_topic_message) messageThreadId = null;
+
+  const tagN = msg.text.replace("/ban ", "");
+  let parts = tagN.split(/\s(.+)/);
+
+  let time = parts[0];
+
+  parts=parts.filter(item => item !== parts[0]);
+
+  const reason = parts.join('');
+
+  const banTo = ms(time);
+
+  console.log(banTo, reason);
+
+  let user;
+  
+  if (match.length > 0 && msg.reply_to_message) {
+      user = msg.reply_to_message.from;
+  } else {
+      await sendDelMessage(chatId, 'Пожалуйста, ответьте на сообщение пользователя.', { message_thread_id: messageThreadId }, msg);
+      setTimeout(async () => {
+          await safeDeleteMessage(msg.chat.id, msg.message_id);
+      }, 3000);
+      return;
+  }
+  if (user.id === 7547671621) return safeDeleteMessage(chatId, msg.message_id, {message_thread_id: messageThreadId});
+
+  const member = await bot.getChatMember(chatId, user.id);
+  const author = await bot.getChatMember(chatId, msg.from.id);
+
+  if (author.status !== 'administrator' && author.status !== 'creator') {
+    await safeDeleteMessage(chatId, msg.message_id);
+    return;
+  }
+
+  if (member.status === 'administrator' || member.status === 'creator') {
+    await safeDeleteMessage(chatId, msg.message_id);
+    return;
+  }
+
+  let userI
+  if (user.username) {userI = `t.me/${user.username}`} else if (user.id) {userI = `tg://user?id=${user.id}`}
+  if (banTo >= 31536000 || banTo <= 30) time = 'Навсегда';
+
+  bot.banChatMember(chatId, user.id, {until_date: banTo}).then(res => {
+    sendMessage(chatId, "["+user.first_name+`](${userI}) был забанен на ${time}\nПо причине: ${reason}`, {message_thread_id: messageThreadId, disable_web_page_preview: true, parse_mode: 'Markdown', }) //res = true/false в зависимости от ответа сервера
+  });
+});
+
+bot.onText(/\/unban/, async (msg) => {
+
+  const chatId = msg.chat.id;
+  let messageThreadId = msg.message_thread_id;
+  if (!msg.is_topic_message) messageThreadId = null;
+
+  let userId;
+
+  const tagN = msg.text.replace("/unban ", "");
+  let parts = tagN.split(/\s(.+)/);
+
+  if (!parts[0]) {
+    userId = parts[0];
+  } else {
+    if (msg.reply_to_message) userId = msg.reply_to_message.from.id;
+  }
+  if (!userId) return await sendDelMessage(chatId, 'Укажите ID пользователя или ответьте на его сообщение!', {message_thread_id: messageThreadId}, msg);
+  if (userId === 7547671621) return safeDeleteMessage(chatId, msg.message_id, {message_thread_id: messageThreadId});
+
+  bot.unbanChatMember(chatId, userId).then(res => {
+    sendMessage(chatId, 'Пользователь был раблокирован', { message_thread_id: messageThreadId, only_if_banned: true}) //res = true/false в зависимости от ответа сервера
+  })
+});
+
+bot.onText(/\/kick/, async (msg) => {
+  const chatId = msg.chat.id;
+  let messageThreadId = msg.message_thread_id;
+  if (!msg.is_topic_message) messageThreadId = null;
+
+  let userId;
+
+  const tagN = msg.text.replace("/unban ", "");
+  let parts = tagN.split(/\s(.+)/);
+
+  if (!parts[0]) {
+    userId = parts[0];
+  } else {
+    if (msg.reply_to_message) userId = msg.reply_to_message.from.id;
+  }
+  if (!userId) {
+    bot.deleteMessage(chatId, msg.message_id);
+    return await sendDelMessage(chatId, 'Укажите ID пользователя или ответьте на его сообщение!', {message_thread_id: messageThreadId}, msg);
+  }
+
+  const member = await bot.getChatMember(chatId, userId);
+  const author = await bot.getChatMember(chatId, msg.from.id);
+
+  if (author.status !== 'administrator' && author.status !== 'creator') {
+    await safeDeleteMessage(chatId, msg.message_id);
+    return;
+  }
+
+  if (member.status === 'administrator' || member.status === 'creator') {
+    await safeDeleteMessage(chatId, msg.message_id);
+    return;
+  }
+
+  if (userId === 7547671621) return safeDeleteMessage(chatId, msg.message_id);
+
+  bot.unbanChatMember(chatId, userId).then(res => {
+    sendMessage(chatId, 'Пользователь был исключён', { message_thread_id: messageThreadId }) //res = true/false в зависимости от ответа сервера
+  })
 });
 
 bot.on('polling_error', (error) => {
