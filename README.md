@@ -1,2 +1,15 @@
 # PojavModerator
-PojavModerator is a Telegram bot designed to manage the PojavLauncher chat community effectively. Its primary purpose is to identify and blacklist cheaters and pirates, denying them support. With user-friendly commands, PojavModerator helps administrators maintain order and ensure a fair environment for all members.
+PojavModerator - Это бот модератор в телеграм чатах Pojavlauncher СНГ. Включает в себя функции модерации и внесения пользователя в чёрный список - аналог выдачи ролм "пирата" и "читера" в дискорде для отказа в поддержке (является костылём. tg is shit). Также имеет автомод в виде модерации сообщений с нежелательными доменами (по умолчанию - майнкрафт сервера, репо с форками PojavLauncher, t.me).
+---
+## Как использовать?
+1. Установите nodejs (я использую 20.17.0, а вы лучше используйте новые LTS версии)
+2. Введите в терминал `npm i`
+3. Вставьте свой токен в `config.json`
+4. Запустите, введя в терминале `node bot`
+
+
+
+
+Сontributors
+- VinTeRuS (Сделал первоначальную систему тегов)
+- Yarpopcat08
