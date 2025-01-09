@@ -1,19 +1,18 @@
 const TelegramBot = require('node-telegram-bot-api');
 const { token, supportChannel, admins } = require('./config.json');
-const { inblacklist } = require('./db');
+const { inblacklist, insert } = require('./db');
 
 const bot = new TelegramBot(token, { polling: true });
 
 //Delete messages if not written by an administrator
 bot.on('message', (msg) => {
-    const chatId = msg.chat.id;
+    const chat = msg.chat
 
-    if (chatId > 0) {
-        if (!admins.includes(msg.from.username)) {
-            safeDeleteMessage(chatId, msg.message_id)
-                .catch(err => {
-                    console.error('Ошибка при удалении сообщения:', err);
-                });
+    if (chat.type === 'private') {
+        if (!admins.includes(msg.from.id)) {
+            safeDeleteMessage(chat.id, msg.message_id).catch(err => {
+              console.error('Ошибка при удалении сообщения:', err);
+            });
         }
     }
 });
@@ -24,28 +23,14 @@ bot.on('message', async (msg) => {
     const delmsginchannel = supportChannel;
     const userId = msg.from.id;
 
-    if (topicId == delmsginchannel) {
+    if (topicId === delmsginchannel) {
+      await insert();
         const buser = await inblacklist(userId); //buser = true || false
         if (buser) {
             safeDeleteMessage(msg.chat.id, msg.message_id, { message_thread_id: topicId })
                 .catch(err => console.log('Не удалось удалить сообщение:', err));
         }
     }
-});
-
-//from VinTeRuS
-const sqlite3 = require('sqlite3').verbose();
-
-const db = new sqlite3.Database('./tags.db');
-const cache = new Map(); // Cache for tags
-
-// Initialize the tags table in the database
-db.serialize(() => {
-  db.run(`CREATE TABLE IF NOT EXISTS tags (
-    id INTEGER PRIMARY KEY,
-    tag TEXT UNIQUE,
-    description TEXT
-  )`);
 });
 
 // Function to send messages to the chat or thread
@@ -82,6 +67,21 @@ async function sendDelMessage(chatId, text, options = {}, msg) {
         await safeDeleteMessage(del.chat.id, del.message_id, { message_thread_id: messageThreadId });
     }, 3000);
 }
+
+
+const sqlite3 = require('sqlite3').verbose();
+
+const db = new sqlite3.Database('./tags.db');
+const cache = new Map(); // Cache for tags
+
+// Initialize the tags table in the database
+db.serialize(() => {
+  db.run(`CREATE TABLE IF NOT EXISTS tags (
+    id INTEGER PRIMARY KEY,
+    tag TEXT UNIQUE,
+    description TEXT
+  )`);
+});
 
 // Function to check if the user is an admin in the chat
 async function isAdmin(chatId, userId) {
@@ -191,6 +191,8 @@ bot.onText(/!(.+)/, async (msg, match) => {
 
 //mod
 const ms = require("ms");
+
+
 bot.onText(/\/ban/, async (msg, match) => {
   const chatId = msg.chat.id;
   let messageThreadId = msg.message_thread_id;
@@ -264,7 +266,7 @@ bot.onText(/\/unban/, async (msg) => {
   if (userId === 7547671621) return safeDeleteMessage(chatId, msg.message_id, {message_thread_id: messageThreadId});
 
   bot.unbanChatMember(chatId, userId).then(res => {
-    sendMessage(chatId, 'Пользователь был раблокирован', { message_thread_id: messageThreadId, only_if_banned: true}) //res = true/false в зависимости от ответа сервера
+    sendMessage(chatId, 'Пользователь был раблокирован', { message_thread_id: messageThreadId }) //res = true/false в зависимости от ответа сервера
   })
 });
 
@@ -319,4 +321,5 @@ console.log('Tags cache has been cleared.');
 }, 10 * 60 * 1000); // Clear the cache every 10 minutes
 
 module.exports = bot;
+
 console.log(`event.js запущен!`);

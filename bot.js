@@ -1,7 +1,6 @@
-const { create } = require('domain');
 const { insert, Createnum, updBlockUser, fetchNum, updUnblockingUser, fetchUserid, inblacklist } = require('./db');
-const bot = require('./events');
 const path = require('path');
+const bot = require('./events');
 
 const filePath = path.join(__dirname, './blacklist.db');
 
@@ -83,6 +82,8 @@ const commands = {
             return;
         }
 
+        await insert();
+
         userToRm = msg.reply_to_message.from;
 
         if (userToRm.username) {user = `t.me/${userToRm.username}`} else if (userToRm.id) {user = `tg://user?id=${userToRm.id}`}
@@ -130,12 +131,11 @@ const commands = {
         .then(() => {
             safeDeleteMessage(chatId, msg.message_id);
         })
-        .catch(error => {
+        .catch(async(error) => {
             console.error("Ошибка при отправке файла:", error);
-            const delmsg = bot.sendMessage(chatId, "Произошла ошибка при отправке файла.");
+            await bot.sendMessage(chatId, "Произошла ошибка при отправке файла.");
             
             setTimeout(async () => {
-                await safeDeleteMessage(delmsg.chat.id, delmsg.message_id);
                 await safeDeleteMessage(msg.chat.id, msg.message_id);
             }, 3000);
         });
