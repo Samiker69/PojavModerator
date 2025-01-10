@@ -1,5 +1,5 @@
 const TelegramBot = require('node-telegram-bot-api');
-const { token, supportChannel, admins } = require('./config.json');
+const { token, supportChannel, admins, botLogsGroupId } = require('./config.json');
 const { inblacklist, insert } = require('./db');
 
 const bot = new TelegramBot(token, { polling: true });
@@ -191,10 +191,179 @@ bot.onText(/!(.+)/, async (msg, match) => {
 
 //mod
 const ms = require("ms");
+const getDate = require('./functions/getdate');
 
+async function AoU(msg) {
+  const member = await bot.getChatMember(msg.chat.id, msg.from.id);
+
+  let admin = false
+
+  if (member.status === 'administrator') {
+    return admin = true
+  }
+  return admin;
+}
+
+async function CoU(msg) {
+  const member = await bot.getChatMember(msg.chat.id, msg.from.id);
+
+  let creator = false
+
+  if (member.status === 'creator') {
+      return creator = true
+  }
+  return creator;
+}
+
+async function AoUQuery(query, msg) {
+  const member = await bot.getChatMember(query.message.chat.id, query.from.id);
+
+  let admin = false;
+
+  if (member.status === 'administrator') {
+    return admin = true
+  }
+
+  return admin;
+}
+
+async function CoUQuery(query, msg) {
+  const member = await bot.getChatMember(query.message.chat.id, query.from.id);
+
+  let creator = false;
+
+  if (member.status === 'creator') {
+    return creator = true
+}
+
+  return creator;
+}
+
+bot.on('message', async (msgq) => {
+  if (!msgq.text) return;
+  const msg = msgq;
+  const me = await bot.getMe();
+  if (msg.from.id === me.id) return;
+
+  const {ban, mute} = require('./badDomenData.json');
+
+  //automod
+  const chatId = msg.chat.id;
+  if (chatId > 0|| chatId === -4679624010) return;
+  let messageThreadId = msg.message_thread_id;
+  if (!msg.is_topic_message) messageThreadId = null;
+
+  let msgtext = msg.text.split(/\s(.+)/);
+
+  const date = getDate();
+
+  let msgInfo = {
+    badword: false,
+    ban: 'нет',
+    mute: 'нет',
+    date
+  }
+
+  for (let i = 0; i <= msgtext.length; i++) { //если сообщение содержит хотя бы одно совпадение, то badword = true
+    if (msg.text.includes(ban[i])) {
+
+      msgInfo.badword = true, msgInfo.ban = 'да';
+      break;
+    }
+    if (msg.text.includes(mute[i])) {
+
+      msgInfo.badword = true, msgInfo.mute = 'да';
+      break;
+    }
+  }
+  if (!msgInfo.badword) return; // если badword = false, то отменить действие автомода
+
+  //опции
+  let permission = {
+    can_send_messages: false,
+    can_send_audios: false,
+    can_send_documents: false,
+    can_send_photos: false,
+    can_send_videos: false,
+    can_send_polls: false,
+    can_send_other_messages: false,
+  }
+
+  const muteMsgOptions = {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: 'Размутить', callback_data: 'unmute' },
+            { text: 'Забанить', callback_data: 'ban' }
+          ],
+          [
+            { text: 'Забанить + удалить сообщения', callback_data: 'banwithdelete' }
+          ]
+        ]
+      },
+      message_thread_id: messageThreadId, disable_web_page_preview: true, parse_mode: 'Markdown'
+  }
+
+  if (await AoU(msg) || await CoU(msg)) return;
+
+  await bot.restrictChatMember(chatId, msg.from.id, permission);
+  await bot.deleteMessage(chatId, msg.message_id);
+  
+  
+  await bot.sendMessage(botLogsGroupId, `Репорт от ${me.first_name}\nУчастник: [${msg.from.first_name}](tg://user?id=${msg.from.id})\nСодержание сообщения: ${msg.text}\n\nПодробнее о репорте: обнаружено нарушение?: ${msgInfo.badword}, бан?: ${msgInfo.ban}, мут?: ${msgInfo.mute}\nСообщение отправлено ${msgInfo.date}`, muteMsgOptions)
+  .then(async(res) => {
+    if (res) {
+      bot.on('callback_query', async (query) => {
+        const chat_id = query.message.chat.id;
+        const msgId = query.message.message_id;
+        if (await AoUQuery(query, msg) || await CoUQuery(query, msg)) {
+          let permission = {
+            can_send_messages: true, 
+            can_send_audios: true, 
+            can_send_documents: true, 
+            can_send_photos: true, 
+            can_send_videos: true, 
+            can_send_polls: true, 
+            can_send_other_messages: true, 
+          }
+          const modChatMsg = {
+            reply_markup: null,
+            chat_id: chat_id, message_id: msgId, disable_web_page_preview: true, parse_mode: 'Markdown'
+          }
+          try {
+            switch (query.data) {
+              case 'unmute':
+                await bot.restrictChatMember(chatId, msg.from.id, permission)
+                await bot.editMessageText(`Репорт от ${me.first_name}\nУчастник: [${msg.from.first_name}](tg://user?id=${msg.from.id})\nСодержание сообщения: ${msg.text}\n\nУчастник больше не в муте. Выполнил действие ${query.from.first_name}`, modChatMsg)
+                break;
+              case 'ban':
+                await bot.banChatMember(chatId, msg.from.id).then(async()=>{
+                  await bot.editMessageText(`Репорт от ${me.first_name}\nУчастник: [${msg.from.first_name}](tg://user?id=${msg.from.id})\nСодержание сообщения: ${msg.text}\n\nУчастник забанен. Выполнил действие ${query.from.first_name}`, modChatMsg)
+                });
+                break;
+              case 'banwithdelete':
+                await bot.banChatMember(chatId, msg.from.id, { revoke_messages: true }).then(async()=>{
+                  await bot.editMessageText(`Репорт от ${me.first_name}\nУчастник: [${msg.from.first_name}](tg://user?id=${msg.from.id})\nСодержание сообщения: ${msg.text}\n\nУчастник забанен, а все его сообщения удалены. Выполнил действие ${query.from.first_name}`, modChatMsg)
+                });
+                break;
+            
+              default:
+                break;
+            }
+          } catch (e) {
+            console.error(e);
+          }
+          
+          return;
+        }
+      });
+    }
+  })
+});
 
 bot.onText(/\/ban/, async (msg, match) => {
   const chatId = msg.chat.id;
+  if (chatId > 0|| chatId === -4679624010) return;
   let messageThreadId = msg.message_thread_id;
   if (!msg.is_topic_message) messageThreadId = null;
 
@@ -247,8 +416,9 @@ bot.onText(/\/ban/, async (msg, match) => {
 });
 
 bot.onText(/\/unban/, async (msg) => {
-
   const chatId = msg.chat.id;
+  if (chatId > 0|| chatId === -4679624010) return;
+
   let messageThreadId = msg.message_thread_id;
   if (!msg.is_topic_message) messageThreadId = null;
 
@@ -272,6 +442,8 @@ bot.onText(/\/unban/, async (msg) => {
 
 bot.onText(/\/kick/, async (msg) => {
   const chatId = msg.chat.id;
+  if (chatId > 0|| chatId === -4679624010) return;
+
   let messageThreadId = msg.message_thread_id;
   if (!msg.is_topic_message) messageThreadId = null;
 

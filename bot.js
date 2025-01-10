@@ -59,12 +59,12 @@ const commands = {
         }
 
         addToBlacklist(reason, userToAdd, nums)
-            .then(() => {
-                return bot.sendMessage(chatId, "Пользователь ["+userToAdd.first_name+`](${user}) добавлен в черный список по причине: ${reason}`, { disable_web_page_preview: true, parse_mode: 'Markdown' });
+            .then(async() => {
+                return await bot.sendMessage(chatId, "Пользователь ["+userToAdd.first_name+`](${user}) добавлен в черный список по причине: ${reason}`, { disable_web_page_preview: true, parse_mode: 'Markdown' });
             })
-            .catch(error => {
+            .catch(async(error) => {
                 console.error('Ошибка при добавлении в черный список:', error);
-                return bot.sendMessage(chatId, 'Произошла ошибка при добавлении пользователя в черный список. Совет: не используйте быстрые команды.');
+                return await bot.sendMessage(chatId, 'Произошла ошибка при добавлении пользователя в черный список. Совет: не используйте быстрые команды.');
             });
     },
     '/blacklist_remove': async (msg) => {

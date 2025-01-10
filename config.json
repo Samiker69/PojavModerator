@@ -1,7 +1,7 @@
 {
-    "token": "your_bot_token_here", 
+    "token": "your-bot-token-here", 
     "supportChannel": "511",
     "pojavgroup": "t.me/pojavlauncher_chat",
-    "botLogsGroupId": "-2462151970",
+    "botLogsGroupId": "-4679624010",
     "admins": [1449016475]
 }
