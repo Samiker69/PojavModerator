@@ -376,7 +376,7 @@ bot.onText(/\/ban/, async (msg, match) => {
 
   const reason = parts.join('');
 
-  const banTo = ms(time);
+  const banTo = ms(time, {long:true});
 
   console.log(banTo, reason);
 
@@ -410,9 +410,8 @@ bot.onText(/\/ban/, async (msg, match) => {
   if (user.username) {userI = `t.me/${user.username}`} else if (user.id) {userI = `tg://user?id=${user.id}`}
   if (banTo >= 31536000 || banTo <= 30) time = 'Навсегда';
 
-  bot.banChatMember(chatId, user.id, {until_date: banTo}).then(res => {
-    sendMessage(chatId, "["+user.first_name+`](${userI}) был забанен на ${time}\nПо причине: ${reason}`, {message_thread_id: messageThreadId, disable_web_page_preview: true, parse_mode: 'Markdown', }) //res = true/false в зависимости от ответа сервера
-  });
+  bot.banChatMember(chatId, user.id, {until_date: banTo});
+    bot.sendMessage(chatId, "["+user.first_name+`](${userI}) был забанен на ${time}\nПо причине: ${reason}`, {message_thread_id: messageThreadId, disable_web_page_preview: true, parse_mode: 'Markdown' });
 });
 
 bot.onText(/\/unban/, async (msg) => {
