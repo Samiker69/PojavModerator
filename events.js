@@ -192,6 +192,7 @@ bot.onText(/!(.+)/, async (msg, match) => {
 //mod
 const ms = require("ms");
 const getDate = require('./functions/getdate');
+const { isBadLink } = require('./functions/automod');
 
 async function AoU(msg) {
   const member = await bot.getChatMember(msg.chat.id, msg.from.id);
@@ -266,7 +267,10 @@ bot.on('message', async (msgq) => {
 
   for (let i = 0; i <= msgtext.length; i++) { //если сообщение содержит хотя бы одно совпадение, то badword = true
     if (msg.text.includes(ban[i])) {
-
+      if (i === 0|1) {
+        if (!isBadLink(msg.text)) return;
+      }
+      
       msgInfo.badword = true, msgInfo.ban = 'да';
       break;
     }
@@ -309,11 +313,11 @@ bot.on('message', async (msgq) => {
   await bot.restrictChatMember(chatId, msg.from.id, permission);
   await bot.deleteMessage(chatId, msg.message_id);
   
-  
   await bot.sendMessage(botLogsGroupId, `Репорт от ${me.first_name}\nУчастник: [${msg.from.first_name}](tg://user?id=${msg.from.id})\nСодержание сообщения: ${msg.text}\n\nПодробнее о репорте: обнаружено нарушение?: ${msgInfo.badword}, бан?: ${msgInfo.ban}, мут?: ${msgInfo.mute}\nСообщение отправлено ${msgInfo.date}`, muteMsgOptions)
   .then(async(res) => {
     if (res) {
       bot.on('callback_query', async (query) => {
+        const msg = msgq
         const chat_id = query.message.chat.id;
         const msgId = query.message.message_id;
         if (await AoUQuery(query, msg) || await CoUQuery(query, msg)) {
