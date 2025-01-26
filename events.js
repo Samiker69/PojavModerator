@@ -181,7 +181,7 @@ bot.onText(/!(.+)/, async (msg, match) => {
     // Retrieve the tag from the database
     db.get(`SELECT description FROM tags WHERE tag = ?`, [tagName], async (err, row) => {
       if (err, !row) {
-          await sendDelMessage(chatId, `Тег '${tagName}' не найден.`, { message_thread_id: messageThreadId }, msg);
+          return;
       } else {
         cache.set(tagName, row.description); // Cache the tag for future use
         sendMessage(chatId, `${row.description}`, { message_thread_id: messageThreadId });
