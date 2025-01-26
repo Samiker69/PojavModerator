@@ -34,9 +34,9 @@ bot.on('message', async (msg) => {
 });
 
 // Function to send messages to the chat or thread
-function sendMessage(chatId, text, options = {}) {
+async function sendMessage(chatId, text, options = {}) {
   const messageOptions = options.message_thread_id ? { message_thread_id: options.message_thread_id } : {};
-  bot.sendMessage(chatId, text, messageOptions);
+  await bot.sendMessage(chatId, text, messageOptions);
 }
 
 const safeDeleteMessage = async (chatId, messageId, options = {}) => {
@@ -371,19 +371,6 @@ bot.onText(/\/ban/, async (msg, match) => {
   let messageThreadId = msg.message_thread_id;
   if (!msg.is_topic_message) messageThreadId = null;
 
-  const tagN = msg.text.replace("/ban ", "");
-  let parts = tagN.split(/\s(.+)/);
-
-  let time = parts[0];
-
-  parts=parts.filter(item => item !== parts[0]);
-
-  const reason = parts.join('');
-
-  const banTo = ms(time, {long:true});
-
-  console.log(banTo, reason);
-
   let user;
   
   if (match.length > 0 && msg.reply_to_message) {
@@ -410,12 +397,33 @@ bot.onText(/\/ban/, async (msg, match) => {
     return;
   }
 
+  const tagN = msg.text.replace("/ban ", "");
+  let parts = tagN.split(/\s(.+)/);
+
+  let banTo = 0;
+  let time = parts[0];
+  banTo = (ms(time, {long:true}) / 1000);
+
+  let reason
+  if (banTo === NaN) {
+    reason = parts.join('');
+    banTo = 0;
+    console.log(reason)
+  }
+  parts=parts.filter(item => item !== parts[0]);
+  reason = parts.join('');
+
   let userI
   if (user.username) {userI = `t.me/${user.username}`} else if (user.id) {userI = `tg://user?id=${user.id}`}
-  if (banTo >= 31536000 || banTo <= 30) time = 'Навсегда';
+  if (banTo >= 31536000 || banTo <= 30000 || banTo === NaN | undefined | null) time = 'Навсегда';
 
-  bot.banChatMember(chatId, user.id, {until_date: banTo});
-    bot.sendMessage(chatId, "["+user.first_name+`](${userI}) был забанен на ${time}\nПо причине: ${reason}`, {message_thread_id: messageThreadId, disable_web_page_preview: true, parse_mode: 'Markdown' });
+  await bot.banChatMember(chatId, user.id, {until_date: banTo}).then(async res =>{
+    if (res) {
+      await bot.sendMessage(chatId, "["+user.first_name+`](${userI}) был забанен на ${time}\nПо причине: ${reason}`, {message_thread_id: messageThreadId, disable_web_page_preview: true, parse_mode: 'Markdown' });
+    } else {
+      await bot.sendMessage(chatId, 'Не удалось забанить пользователя. Возможно, он уже забанен или произошла иная ошибка', {message_thread_id: messageThreadId})
+    }
+  });
 });
 
 bot.onText(/\/unban/, async (msg) => {
@@ -436,10 +444,10 @@ bot.onText(/\/unban/, async (msg) => {
     if (msg.reply_to_message) userId = msg.reply_to_message.from.id;
   }
   if (!userId) return await sendDelMessage(chatId, 'Укажите ID пользователя или ответьте на его сообщение!', {message_thread_id: messageThreadId}, msg);
-  if (userId === 7547671621) return safeDeleteMessage(chatId, msg.message_id, {message_thread_id: messageThreadId});
+  if (userId === 7547671621) return await safeDeleteMessage(chatId, msg.message_id, {message_thread_id: messageThreadId});
 
-  bot.unbanChatMember(chatId, userId).then(res => {
-    sendMessage(chatId, 'Пользователь был раблокирован', { message_thread_id: messageThreadId }) //res = true/false в зависимости от ответа сервера
+  await bot.unbanChatMember(chatId, userId).then(async res => {
+    await sendMessage(chatId, 'Пользователь был разбанен', { message_thread_id: messageThreadId }) //res = true/false в зависимости от ответа сервера
   })
 });
 
@@ -461,7 +469,7 @@ bot.onText(/\/kick/, async (msg) => {
     if (msg.reply_to_message) userId = msg.reply_to_message.from.id;
   }
   if (!userId) {
-    bot.deleteMessage(chatId, msg.message_id);
+    await bot.deleteMessage(chatId, msg.message_id);
     return await sendDelMessage(chatId, 'Укажите ID пользователя или ответьте на его сообщение!', {message_thread_id: messageThreadId}, msg);
   }
 
@@ -478,10 +486,10 @@ bot.onText(/\/kick/, async (msg) => {
     return;
   }
 
-  if (userId === 7547671621) return safeDeleteMessage(chatId, msg.message_id);
+  if (userId === 7547671621) return await safeDeleteMessage(chatId, msg.message_id);
 
-  bot.unbanChatMember(chatId, userId).then(res => {
-    sendMessage(chatId, 'Пользователь был исключён', { message_thread_id: messageThreadId }) //res = true/false в зависимости от ответа сервера
+  await bot.unbanChatMember(chatId, userId).then(async res => {
+    await sendMessage(chatId, 'Пользователь был исключён', { message_thread_id: messageThreadId }) //res = true/false в зависимости от ответа сервера
   })
 });
 
